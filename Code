@@ -1,0 +1,41 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, confusion_matrix
+import gradio as gr
+
+# Load and prepare data
+df = pd.read_csv("IMDB Dataset.csv")
+df['label'] = df['sentiment'].map({'positive': 1, 'negative': 0})
+X_train, X_test, y_train, y_test = train_test_split(df['review'], df['label'], test_size=0.2, random_state=42)
+
+# TF-IDF Vectorization
+vectorizer = TfidfVectorizer(stop_words='english', max_features=5000)
+X_train_tfidf = vectorizer.fit_transform(X_train)
+X_test_tfidf = vectorizer.transform(X_test)
+
+# Train Logistic Regression model
+model = LogisticRegression(max_iter=1000)
+model.fit(X_train_tfidf, y_train)
+
+# Sentiment prediction function
+def predict_sentiment(review):
+    vec = vectorizer.transform([review])
+    pred = model.predict(vec)[0]
+    prob = model.predict_proba(vec)[0][pred]
+    sentiment = "Positive 😊" if pred == 1 else "Negative 😠"
+    color = "green" if pred == 1 else "red"
+    return f"<div style='color:{color}; font-size: 24px; font-weight: bold;'>{sentiment} ({prob*100:.2f}% confidence)</div>"
+
+# Gradio Interface
+interface = gr.Interface(
+    fn=predict_sentiment,
+    inputs=gr.Textbox(label="Enter a movie review", placeholder="Type your IMDB review here...", lines=4),
+    outputs=gr.HTML(label="Predicted Sentiment"),
+    title="🎬 IMDB Review Sentiment Analyzer",
+    description="Enter a movie review to see if the sentiment is Positive or Negative using Logistic Regression and TF-IDF.",
+    theme="default"
+)
+
+interface.launch()
